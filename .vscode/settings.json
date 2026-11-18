@@ -1,0 +1,20 @@
+{
+    "sqltools.connections": [
+        {
+            "pgOptions": {
+                "ssl": {
+                    "rejectUnauthorized": true
+                }
+            },
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "ep-orange-cell-b4tq1mgz.c-6.us-east-2.aws.neon.tech",
+            "port": 5432,
+            "driver": "PostgreSQL",
+            "name": "grupos-studymatch",
+            "database": "neondb",
+            "username": "neondb_owner",
+            "password": "npg_GoMTSZEqsm53"
+        }
+    ]
+}

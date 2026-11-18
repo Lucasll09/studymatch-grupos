@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Módulo de Grupos y Disponibilidad</title>
+    <!-- Bootstrap para un diseño base adaptable (Responsive) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- ========================================== -->
+    <!-- SCRIPT DE INTEGRACIÓN OFICIAL (ACUERDO V1) -->
+    <!-- ========================================== -->
+    <script>
+        (function () {
+            var ORIGEN_STUDYMATCH = 'http://localhost:4200'; // Origen del Frontend Principal
+            var token = null;
+            var ultimo = 0;
+            
+            function enviar(tipo, extra) {
+                var m = { app: 'studymatch', v: 1, tipo: tipo };
+                for (var k in (extra || {})) m[k] = extra[k];
+                window.parent.postMessage(m, ORIGEN_STUDYMATCH);
+            }
+            
+            window.addEventListener('message', function (ev) {
+                if (ev.origin !== ORIGEN_STUDYMATCH || ev.source !== window.parent) return;
+                var m = ev.data;
+                if (!m || m.app !== 'studymatch' || m.v !== 1) return;
+                
+                if (m.tipo === 'SESION') { 
+                    token = m.token;
+                    window.dispatchEvent(new CustomEvent('studymatch:sesion', { detail: m })); 
+                }
+                if (m.tipo === 'CERRAR_SESION') { 
+                    token = null;
+                    window.dispatchEvent(new Event('studymatch:cerrar')); 
+                }
+            });
+            
+            ['pointerdown', 'pointermove', 'keydown', 'scroll', 'touchstart'].forEach(function (nombre) {
+                window.addEventListener(nombre, function () {
+                    var t = Date.now();
+                    // Envía ACTIVIDAD para que no se cierre la sesión por inactividad
+                    if (token && (t - ultimo > 5000)) { ultimo = t; enviar('ACTIVIDAD'); }
+                }, { passive: true, capture: true });
+            });
+            
+            window.StudyMatch = {
+                token: function () { return token; },
+                sesionInvalida: function () { enviar('SESION_INVALIDA'); }
+            };
+            
+            enviar('LISTO'); // Avisa al contenedor principal que ya cargamos
+        })();
+    </script>
+</head>
+<body class="bg-light p-4">
+    <div class="container bg-white p-5 rounded shadow-sm text-center">
+        <h2 class="mb-3">Módulo de Grupos de Estudio</h2>
+        
+        <!-- Mensaje de estado de conexión -->
+        <div id="estado-sesion" class="alert alert-warning">
+            ⏳ Esperando sesión del contenedor principal...
+        </div>
+
+        <!-- Interfaz oculta hasta que llegue el token -->
+        <div id="interfaz-app" style="display: none;">
+            <p class="text-success fw-bold">✅ Sesión conectada. Token recibido.</p>
+            <button id="btn-prueba" class="btn btn-primary">Hacer petición de prueba al Gateway</button>
+            <hr>
+            <p class="text-muted small">Aquí el equipo de Front debe armar los formularios de creación de grupos.</p>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- LÓGICA DEL FRONTEND DEL MICROSERVICIO      -->
+    <!-- ========================================== -->
+    <script>
+        const estadoSesion = document.getElementById('estado-sesion');
+        const interfazApp = document.getElementById('interfaz-app');
+        
+        // El API Gateway central
+        const URL_DEL_GATEWAY = "http://localhost:8080/api/v1/grupos"; // Cambiar por el puerto real del gateway
+
+        // 1. Escuchar cuando el contenedor padre nos pasa la sesión
+        window.addEventListener('studymatch:sesion', function(e) {
+            estadoSesion.style.display = 'none';
+            interfazApp.style.display = 'block';
+            console.log("Sesión iniciada con token:", window.StudyMatch.token());
+        });
+
+        // 2. Escuchar cuando el contenedor padre nos cierra la sesión
+        window.addEventListener('studymatch:cerrar', function(e) {
+            estadoSesion.style.display = 'block';
+            estadoSesion.className = 'alert alert-danger';
+            estadoSesion.innerText = '🔒 Sesión cerrada';
+            interfazApp.style.display = 'none';
+        });
+
+        // 3. Ejemplo de cómo el Front debe hacer la petición al Gateway
+        document.getElementById('btn-prueba').addEventListener('click', function() {
+            fetch(URL_DEL_GATEWAY, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + window.StudyMatch.token() 
+                },
+                body: JSON.stringify({
+                    nombre: "Grupo de Prueba",
+                    materia_id: 1,
+                    miembros: [25]
+                })
+            }).then(function (r) { 
+                if (r.status === 401) {
+                    // Si el Gateway rechaza el token, le avisamos al padre
+                    window.StudyMatch.sesionInvalida();
+                }
+                return r.json(); 
+            }).then(data => alert("Respuesta del servidor: " + JSON.stringify(data)));
+        });
+    </script>
+</body>
+</html>
