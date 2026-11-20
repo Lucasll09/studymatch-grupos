@@ -18,7 +18,7 @@ MATERIAS_URL = os.getenv("MATERIAS_URL")
 
 app = FastAPI(
     title="Microservicio de Grupos y Disponibilidad",
-    version="3.2",
+    version="3.3",
     description="API con BD, Integración HTTP (Mensajería y Materias), Gateway y Frontend embebido"
 )
 
@@ -130,19 +130,44 @@ async def crear_grupo(
     if not x_user_id:
         raise HTTPException(status_code=401, detail="No autorizado. Falta X-User-Id desde el Gateway")
 
-    # 2. --- INTEGRACIÓN CON MATERIAS (Validar que exista) ---
+    # 2. --- INTEGRACIÓN CON MATERIAS (Validar contra GET /api/v1/materias) ---
     if MATERIAS_URL:
-        url_consulta = f"{MATERIAS_URL.rstrip('/')}/{grupo.materia_id}"
+        base_materias = MATERIAS_URL.rstrip("/")
+        url_consulta = (
+            base_materias
+            if base_materias.endswith("/materias")
+            else f"{base_materias}/api/v1/materias"
+        )
         try:
-            # Timeout amplio por si Materias está en capa gratuita de Render (cold start)
             async with httpx.AsyncClient(timeout=40.0) as client:
                 resp_materia = await client.get(url_consulta)
 
-                if resp_materia.status_code == 404:
+                if resp_materia.status_code != 200:
+                    raise HTTPException(
+                        status_code=503,
+                        detail=f"El microservicio de Materias respondió con estado {resp_materia.status_code}."
+                    )
+
+                datos_materias = resp_materia.json()
+                lista_materias = (
+                    datos_materias
+                    if isinstance(datos_materias, list)
+                    else datos_materias.get("materias", datos_materias.get("data", []))
+                )
+
+                ids_validos = {
+                    m.get("materia_id") if m.get("materia_id") is not None else m.get("id")
+                    for m in lista_materias
+                    if isinstance(m, dict)
+                }
+
+                if grupo.materia_id not in ids_validos:
                     raise HTTPException(
                         status_code=400,
                         detail=f"Error: La materia con ID {grupo.materia_id} no existe en el sistema."
                     )
+        except HTTPException:
+            raise
         except httpx.RequestError:
             raise HTTPException(
                 status_code=503,
