@@ -16,11 +16,12 @@ import models
 # Cargar las URLs desde las variables de entorno (.env / Railway)
 MENSAJERIA_URL = os.getenv("MENSAJERIA_URL")
 MATERIAS_URL = os.getenv("MATERIAS_URL")
+GATEWAY_URL = os.getenv("GATEWAY_URL", "http://178.18.252.176:8000").rstrip("/")
 
 app = FastAPI(
     title="Microservicio de Grupos y Disponibilidad",
-    version="3.4",
-    description="API con BD, Integración HTTP (Mensajería y Materias), Gateway y Frontend embebido"
+    version="3.5",
+    description="API con BD, Integración HTTP (Mensajería, Materias y Catálogo), Gateway y Frontend embebido"
 )
 
 # =================================================================
@@ -60,6 +61,65 @@ async def servir_interfaz():
             content="<h1>Error: Crea el archivo index.html en la raíz del proyecto</h1>",
             status_code=404
         )
+
+
+# =================================================================
+# CATÁLOGO (USUARIOS Y MATERIAS DESDE EL GATEWAY)
+# =================================================================
+@app.get("/api/v1/catalogo")
+async def obtener_catalogo_gateway(authorization: str = Header(None)):
+    headers = {"Authorization": authorization} if authorization else {}
+    usuarios_map = {}
+    materias_map = {}
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        # 1. Consultar lista de estudiantes en el Gateway
+        try:
+            resp_u = await client.get(f"{GATEWAY_URL}/api/v1/usuarios", headers=headers)
+            if resp_u.status_code == 200:
+                datos_u = resp_u.json()
+                lista_u = (
+                    datos_u
+                    if isinstance(datos_u, list)
+                    else datos_u.get("usuarios", datos_u.get("data", datos_u.get("items", [])))
+                )
+                for u in lista_u:
+                    if isinstance(u, dict):
+                        uid = u.get("usuario_id") if u.get("usuario_id") is not None else u.get("id")
+                        if uid is not None:
+                            usuarios_map[str(uid)] = {
+                                "usuario_id": uid,
+                                "nombre": u.get("nombre") or f"Usuario #{uid}",
+                                "correo": u.get("correo") or u.get("email") or ""
+                            }
+        except Exception as e:
+            print(f"Advertencia catalogo usuarios: {e}")
+
+        # 2. Consultar lista de materias en el Gateway
+        try:
+            resp_m = await client.get(f"{GATEWAY_URL}/api/v1/materias", headers=headers)
+            if resp_m.status_code == 200:
+                datos_m = resp_m.json()
+                lista_m = (
+                    datos_m
+                    if isinstance(datos_m, list)
+                    else datos_m.get("materias", datos_m.get("data", datos_m.get("items", [])))
+                )
+                for m in lista_m:
+                    if isinstance(m, dict):
+                        mid = m.get("materia_id") if m.get("materia_id") is not None else m.get("id")
+                        if mid is not None:
+                            materias_map[str(mid)] = {
+                                "materia_id": mid,
+                                "nombre": m.get("nombre") or f"Materia #{mid}"
+                            }
+        except Exception as e:
+            print(f"Advertencia catalogo materias: {e}")
+
+    return {
+        "usuarios": usuarios_map,
+        "materias": materias_map
+    }
 
 
 # =================================================================
@@ -184,7 +244,7 @@ async def crear_grupo(
             fecha_creacion=date.today()
         )
         db.add(nuevo_grupo)
-        db.flush()  # Obtiene nuevo_grupo.grupo_id sin dejar grupos huérfanos si falla grupo_usuario
+        db.flush()
 
         for estudiante_id in miembros_unicos:
             nuevo_miembro = db_models.GrupoUsuarioDB(
