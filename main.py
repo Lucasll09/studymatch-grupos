@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from datetime import date
 
 # Importamos la configuración de DB y los modelos
@@ -18,7 +19,7 @@ MATERIAS_URL = os.getenv("MATERIAS_URL")
 
 app = FastAPI(
     title="Microservicio de Grupos y Disponibilidad",
-    version="3.3",
+    version="3.4",
     description="API con BD, Integración HTTP (Mensajería y Materias), Gateway y Frontend embebido"
 )
 
@@ -174,27 +175,39 @@ async def crear_grupo(
                 detail="El microservicio de Materias está fuera de línea. No se pudo validar."
             )
 
-    # 3. Insertar en la tabla principal 'grupos'
-    nuevo_grupo = db_models.GrupoDB(
-        nombre=grupo.nombre,
-        materia_id=grupo.materia_id,
-        fecha_creacion=date.today()
-    )
-    db.add(nuevo_grupo)
-    db.commit()
-    db.refresh(nuevo_grupo)
-
-    # 4. Insertar integrantes sin duplicados asegurando al creador
+    # 3 y 4. Insertar grupo e integrantes en una sola transacción limpia
     miembros_unicos = list(dict.fromkeys([x_user_id, *grupo.miembros]))
-    for estudiante_id in miembros_unicos:
-        nuevo_miembro = db_models.GrupoUsuarioDB(
-            grupo_id=nuevo_grupo.grupo_id,
-            usuario_id=estudiante_id,
-            rol="estudiante"
+    try:
+        nuevo_grupo = db_models.GrupoDB(
+            nombre=grupo.nombre,
+            materia_id=grupo.materia_id,
+            fecha_creacion=date.today()
         )
-        db.add(nuevo_miembro)
+        db.add(nuevo_grupo)
+        db.flush()  # Obtiene nuevo_grupo.grupo_id sin dejar grupos huérfanos si falla grupo_usuario
 
-    db.commit()
+        for estudiante_id in miembros_unicos:
+            nuevo_miembro = db_models.GrupoUsuarioDB(
+                grupo_id=nuevo_grupo.grupo_id,
+                usuario_id=estudiante_id,
+                rol="admin" if estudiante_id == x_user_id else "usuario"
+            )
+            db.add(nuevo_miembro)
+
+        db.commit()
+        db.refresh(nuevo_grupo)
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail=f"Error de integridad al registrar el grupo o los integrantes: {str(e.orig)}"
+        )
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error de base de datos al crear el grupo: {str(e)}"
+        )
 
     # 5. --- INTEGRACIÓN CON MENSAJERÍA ---
     chat_creado = False
