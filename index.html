@@ -3,121 +3,1253 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Módulo de Grupos y Disponibilidad</title>
-    <!-- Bootstrap para un diseño base adaptable (Responsive) -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- ========================================== -->
-    <!-- SCRIPT DE INTEGRACIÓN OFICIAL (ACUERDO V1) -->
-    <!-- ========================================== -->
-    <script>
-        (function () {
-            var ORIGEN_STUDYMATCH = 'http://localhost:4200'; // Origen del Frontend Principal
-            var token = null;
-            var ultimo = 0;
-            
-            function enviar(tipo, extra) {
-                var m = { app: 'studymatch', v: 1, tipo: tipo };
-                for (var k in (extra || {})) m[k] = extra[k];
-                window.parent.postMessage(m, ORIGEN_STUDYMATCH);
+    <title>StudyMatch | Grupos y Disponibilidad</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #3563e9;
+            --dark: #14213d;
+            --background: #f5f7fb;
+            --text: #202b3c;
+            --muted: #738096;
+            --border: #e8edf4;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--background);
+            color: var(--text);
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        .layout {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: 245px 1fr;
+        }
+
+        /* SIDEBAR */
+
+        .sidebar {
+            background: var(--dark);
+            color: white;
+            padding: 26px 18px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .brand {
+            font-size: 23px;
+            font-weight: 800;
+            padding: 5px 10px 35px;
+        }
+
+        .brand span {
+            color: #8eafff;
+        }
+
+        .nav-title {
+            color: #94a3bd;
+            font-size: 10px;
+            letter-spacing: 1.5px;
+            margin: 10px 12px;
+            text-transform: uppercase;
+        }
+
+        .nav-button {
+            width: 100%;
+            border: none;
+            background: transparent;
+            color: #cbd5e1;
+            padding: 13px;
+            border-radius: 10px;
+            text-align: left;
+            margin: 3px 0;
+            font-weight: 600;
+            transition: .2s;
+        }
+
+        .nav-button:hover,
+        .nav-button.active {
+            background: #263858;
+            color: white;
+        }
+
+        .nav-button span {
+            display: inline-block;
+            width: 28px;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            border-top: 1px solid #30405c;
+            padding: 16px 10px;
+            color: #aab7cb;
+            font-size: 12px;
+        }
+
+        /* CONTENIDO */
+
+        main {
+            padding: 30px clamp(18px, 4vw, 50px);
+            min-width: 0;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 28px;
+        }
+
+        .eyebrow {
+            color: var(--primary);
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            font-size: clamp(25px, 3vw, 34px);
+            font-weight: 800;
+            margin: 5px 0;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .session-pill {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 30px;
+            padding: 10px 15px;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #f0ad4e;
+            border-radius: 50%;
+            margin-right: 7px;
+        }
+
+        .dot.ok {
+            background: #20b47b;
+        }
+
+        .dot.error {
+            background: #e05b63;
+        }
+
+        /* TARJETAS */
+
+        .panel {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 22px;
+            box-shadow: 0 5px 20px rgba(24,39,75,.035);
+            height: 100%;
+        }
+
+        .panel h2 {
+            font-size: 17px;
+            font-weight: 800;
+            margin-bottom: 5px;
+        }
+
+        .hint {
+            color: var(--muted);
+            font-size: 13px;
+            margin-bottom: 18px;
+        }
+
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .stat-icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 13px;
+            background: #edf2ff;
+            color: var(--primary);
+            display: grid;
+            place-items: center;
+            font-size: 22px;
+        }
+
+        .stat strong {
+            display: block;
+            font-size: 23px;
+        }
+
+        .stat small {
+            color: var(--muted);
+        }
+
+        /* SECCIONES */
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .group-card {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .group-card h3 {
+            font-size: 15px;
+            font-weight: 750;
+        }
+
+        .meta {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .empty {
+            border: 1px dashed #d8e0ec;
+            border-radius: 12px;
+            text-align: center;
+            padding: 35px 15px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .empty strong {
+            display: block;
+            color: #46536a;
+            margin-bottom: 5px;
+        }
+
+        .slot {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 10px;
+        }
+
+        .slot strong {
+            font-size: 14px;
+            text-transform: capitalize;
+        }
+
+        .slot span {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        /* FORMULARIOS */
+
+        .form-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #526078;
+        }
+
+        .form-control {
+            border-color: #e1e7f0;
+            border-radius: 9px;
+            padding: 11px 12px;
+            font-size: 14px;
+        }
+
+        .form-control:focus {
+            border-color: #91aaff;
+            box-shadow: 0 0 0 .2rem rgba(53,99,233,.1);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            border-color: var(--primary);
+            border-radius: 9px;
+            padding: 10px 17px;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .btn-outline-primary {
+            border-radius: 9px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .small-note {
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        /* RESPONSIVE */
+
+        @media(max-width: 800px) {
+            .layout {
+                grid-template-columns: 1fr;
             }
-            
-            window.addEventListener('message', function (ev) {
-                if (ev.origin !== ORIGEN_STUDYMATCH || ev.source !== window.parent) return;
-                var m = ev.data;
-                if (!m || m.app !== 'studymatch' || m.v !== 1) return;
-                
-                if (m.tipo === 'SESION') { 
-                    token = m.token;
-                    window.dispatchEvent(new CustomEvent('studymatch:sesion', { detail: m })); 
-                }
-                if (m.tipo === 'CERRAR_SESION') { 
-                    token = null;
-                    window.dispatchEvent(new Event('studymatch:cerrar')); 
-                }
-            });
-            
-            ['pointerdown', 'pointermove', 'keydown', 'scroll', 'touchstart'].forEach(function (nombre) {
-                window.addEventListener(nombre, function () {
-                    var t = Date.now();
-                    // Envía ACTIVIDAD para que no se cierre la sesión por inactividad
-                    if (token && (t - ultimo > 5000)) { ultimo = t; enviar('ACTIVIDAD'); }
-                }, { passive: true, capture: true });
-            });
-            
-            window.StudyMatch = {
-                token: function () { return token; },
-                sesionInvalida: function () { enviar('SESION_INVALIDA'); }
-            };
-            
-            enviar('LISTO'); // Avisa al contenedor principal que ya cargamos
-        })();
-    </script>
+
+            .sidebar {
+                padding: 12px;
+                flex-direction: row;
+                align-items: center;
+                gap: 8px;
+                overflow-x: auto;
+            }
+
+            .brand {
+                padding: 5px;
+                white-space: nowrap;
+                font-size: 18px;
+            }
+
+            .nav-title,
+            .sidebar-footer {
+                display: none;
+            }
+
+            .nav-button {
+                width: auto;
+                white-space: nowrap;
+                padding: 10px;
+            }
+
+            .nav-button span {
+                width: auto;
+                margin-right: 4px;
+            }
+
+            main {
+                padding: 22px 15px;
+            }
+
+            .topbar {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
+    </style>
 </head>
-<body class="bg-light p-4">
-    <div class="container bg-white p-5 rounded shadow-sm text-center">
-        <h2 class="mb-3">Módulo de Grupos de Estudio</h2>
-        
-        <!-- Mensaje de estado de conexión -->
-        <div id="estado-sesion" class="alert alert-warning">
-            ⏳ Esperando sesión del contenedor principal...
+
+<body>
+
+<div class="layout">
+
+    <!-- BARRA LATERAL -->
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            Study<span>Match</span>
         </div>
 
-        <!-- Interfaz oculta hasta que llegue el token -->
-        <div id="interfaz-app" style="display: none;">
-            <p class="text-success fw-bold">✅ Sesión conectada. Token recibido.</p>
-            <button id="btn-prueba" class="btn btn-primary">Hacer petición de prueba al Gateway</button>
-            <hr>
-            <p class="text-muted small">Aquí el equipo de Front debe armar los formularios de creación de grupos.</p>
+        <div class="nav-title">Espacio de estudio</div>
+
+        <button class="nav-button active" data-view="grupos">
+            <span>▦</span> Mis grupos
+        </button>
+
+        <button class="nav-button" data-view="crear">
+            <span>＋</span> Crear grupo
+        </button>
+
+        <button class="nav-button" data-view="disponibilidad">
+            <span>◷</span> Disponibilidad
+        </button>
+
+        <div class="sidebar-footer">
+            Microservicio de Grupos y Disponibilidad
+            <br>
+            StudyMatch · V1
         </div>
-    </div>
 
-    <!-- ========================================== -->
-    <!-- LÓGICA DEL FRONTEND DEL MICROSERVICIO      -->
-    <!-- ========================================== -->
-    <script>
-        const estadoSesion = document.getElementById('estado-sesion');
-        const interfazApp = document.getElementById('interfaz-app');
-        
-        // El API Gateway central
-        const URL_DEL_GATEWAY = "http://localhost:8080/api/v1/grupos"; // Cambiar por el puerto real del gateway
+    </aside>
 
-        // 1. Escuchar cuando el contenedor padre nos pasa la sesión
-        window.addEventListener('studymatch:sesion', function(e) {
-            estadoSesion.style.display = 'none';
-            interfazApp.style.display = 'block';
-            console.log("Sesión iniciada con token:", window.StudyMatch.token());
-        });
 
-        // 2. Escuchar cuando el contenedor padre nos cierra la sesión
-        window.addEventListener('studymatch:cerrar', function(e) {
-            estadoSesion.style.display = 'block';
-            estadoSesion.className = 'alert alert-danger';
-            estadoSesion.innerText = '🔒 Sesión cerrada';
-            interfazApp.style.display = 'none';
-        });
+    <!-- CONTENIDO PRINCIPAL -->
 
-        // 3. Ejemplo de cómo el Front debe hacer la petición al Gateway
-        document.getElementById('btn-prueba').addEventListener('click', function() {
-            fetch(URL_DEL_GATEWAY, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + window.StudyMatch.token() 
-                },
-                body: JSON.stringify({
-                    nombre: "Grupo de Prueba",
-                    materia_id: 1,
-                    miembros: [25]
-                })
-            }).then(function (r) { 
-                if (r.status === 401) {
-                    // Si el Gateway rechaza el token, le avisamos al padre
-                    window.StudyMatch.sesionInvalida();
+    <main>
+
+        <div class="topbar">
+
+            <div>
+                <div class="eyebrow">Tu espacio académico</div>
+
+                <h1 id="page-title">Mis grupos</h1>
+
+                <div class="subtitle">
+                    Organiza tus sesiones de estudio y encuentra compañeros.
+                </div>
+            </div>
+
+            <div class="session-pill">
+                <span id="status-dot" class="dot"></span>
+                <span id="status-text">Esperando usuario</span>
+            </div>
+
+        </div>
+
+
+        <!-- MENSAJES -->
+
+        <div id="global-alert" class="alert d-none"></div>
+
+
+        <!-- ESTADÍSTICAS -->
+
+        <div class="row g-3 mb-4">
+
+            <div class="col-sm-6 col-xl-4">
+                <div class="panel stat">
+
+                    <div class="stat-icon">▦</div>
+
+                    <div>
+                        <strong id="stat-groups">—</strong>
+                        <small>Grupos encontrados</small>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="col-sm-6 col-xl-4">
+                <div class="panel stat">
+
+                    <div class="stat-icon">◷</div>
+
+                    <div>
+                        <strong id="stat-slots">—</strong>
+                        <small>Horarios registrados</small>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="col-sm-12 col-xl-4">
+                <div class="panel stat">
+
+                    <div class="stat-icon">♙</div>
+
+                    <div>
+                        <strong id="stat-user">Sin identificar</strong>
+                        <small>Usuario actual</small>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+
+        <!-- MIS GRUPOS -->
+
+        <section id="view-grupos" class="section active">
+
+            <div class="panel">
+
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+
+                    <div>
+                        <h2>Mis grupos de estudio</h2>
+                        <p class="hint">
+                            Consulta los grupos asociados a tu cuenta.
+                        </p>
+                    </div>
+
+                    <button class="btn btn-outline-primary" id="refresh-groups">
+                        ↻ Actualizar
+                    </button>
+
+                </div>
+
+                <div id="groups-list">
+
+                    <div class="empty">
+                        <strong>Esperando información</strong>
+                        Cuando se identifique tu usuario podremos consultar tus grupos.
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- CREAR GRUPO -->
+
+        <section id="view-crear" class="section">
+
+            <div class="panel">
+
+                <h2>Crear un grupo de estudio</h2>
+
+                <p class="hint">
+                    Completa los datos para registrar un nuevo grupo.
+                </p>
+
+                <form id="create-form">
+
+                    <div class="row g-3">
+
+                        <div class="col-md-7">
+
+                            <label class="form-label" for="group-name">
+                                Nombre del grupo
+                            </label>
+
+                            <input
+                                class="form-control"
+                                id="group-name"
+                                maxlength="150"
+                                required
+                                placeholder="Ej. Repaso de Sistemas Distribuidos"
+                            >
+
+                        </div>
+
+
+                        <div class="col-md-5">
+
+                            <label class="form-label" for="subject-id">
+                                ID de la materia
+                            </label>
+
+                            <input
+                                class="form-control"
+                                id="subject-id"
+                                type="number"
+                                min="1"
+                                required
+                                placeholder="Ej. 1"
+                            >
+
+                        </div>
+
+
+                        <div class="col-12">
+
+                            <label class="form-label" for="members">
+                                ID de los integrantes
+                            </label>
+
+                            <input
+                                class="form-control"
+                                id="members"
+                                placeholder="Ej. 2, 5, 8"
+                            >
+
+                            <div class="small-note mt-2">
+                                Separa los identificadores con comas.
+                                Tu propio ID de usuario se incluirá automáticamente.
+                            </div>
+
+                        </div>
+
+
+                        <div class="col-12">
+
+                            <button
+                                class="btn btn-primary"
+                                id="create-submit"
+                                type="submit"
+                            >
+                                Crear grupo
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </form>
+
+                <div id="create-result" class="mt-3"></div>
+
+            </div>
+
+        </section>
+
+
+        <!-- DISPONIBILIDAD -->
+
+        <section id="view-disponibilidad" class="section">
+
+            <div class="panel">
+
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+
+                    <div>
+                        <h2>Mi disponibilidad</h2>
+
+                        <p class="hint">
+                            Consulta los horarios registrados para tu usuario.
+                        </p>
+                    </div>
+
+                    <button class="btn btn-outline-primary" id="refresh-availability">
+                        ↻ Consultar horarios
+                    </button>
+
+                </div>
+
+                <div id="availability-list">
+
+                    <div class="empty">
+                        <strong>Esperando identificación</strong>
+                        La disponibilidad se consulta utilizando el ID del estudiante.
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ESTADO DE INTEGRACIÓN -->
+
+        <div class="panel mt-4">
+
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+
+                <div>
+                    <h2>Estado de integración</h2>
+
+                    <div class="small-note">
+                        Comunicación con el portal principal StudyMatch (parámetro URL o iframe).
+                    </div>
+                </div>
+
+                <span class="badge text-bg-light border" id="integration-badge">
+                    Esperando usuario
+                </span>
+
+            </div>
+
+            <div class="small-note mt-3" id="integration-detail">
+                Esperando parámetro ?usuario_id= en la URL o mensaje SESION del portal.
+            </div>
+
+            <!-- Solo se muestra si se abre directo sin ?usuario_id= y sin portal -->
+            <div id="manual-id-box" class="d-none mt-3 pt-3 border-top">
+                <div class="d-flex gap-2 flex-wrap align-items-center">
+                    <input
+                        type="number"
+                        min="1"
+                        id="manual-user-input"
+                        class="form-control"
+                        style="max-width: 240px;"
+                        placeholder="Probar con usuario_id (ej. 1)"
+                    >
+                    <button type="button" class="btn btn-outline-primary" id="manual-user-btn">
+                        Cargar usuario
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+
+
+<!-- ========================================== -->
+<!-- INTEGRACIÓN HÍBRIDA: URL + POSTMESSAGE     -->
+<!-- ========================================== -->
+
+<script>
+
+(function () {
+
+    var token = null;
+    var usuarioId = null;
+    var origenSesion = null;
+    var origenParent = '*';
+    var ultimo = 0;
+
+    function parsearId(valor) {
+        var n = parseInt(valor, 10);
+        return Number.isInteger(n) && n > 0 ? n : null;
+    }
+
+    function leerIdDesdeURL() {
+        var params = new URLSearchParams(window.location.search);
+        return parsearId(
+            params.get('usuario_id') ||
+            params.get('user_id') ||
+            params.get('userId') ||
+            params.get('id')
+        );
+    }
+
+    function enviar(tipo, extra) {
+        if (window.parent === window) return;
+
+        var mensaje = {
+            app: 'studymatch',
+            v: 1,
+            tipo: tipo
+        };
+
+        for (var k in (extra || {})) {
+            mensaje[k] = extra[k];
+        }
+
+        try {
+            window.parent.postMessage(mensaje, origenParent);
+        } catch (e) {
+            // Silencioso si el contenedor restringe postMessage
+        }
+    }
+
+    // 1. Escucha mensajes del portal (compatible con cualquier dominio desplegado o localhost)
+    window.addEventListener('message', function (ev) {
+        if (window.parent !== window && ev.source !== window.parent) {
+            return;
+        }
+
+        var mensaje = ev.data;
+        if (!mensaje || typeof mensaje !== 'object') return;
+
+        // Formato oficial StudyMatch V1
+        if (mensaje.app === 'studymatch' && mensaje.v === 1) {
+            if (ev.origin && ev.origin !== 'null') {
+                origenParent = ev.origin;
+            }
+
+            if (mensaje.tipo === 'SESION') {
+                token = mensaje.token || token;
+
+                var idRecibido = parsearId(
+                    mensaje.usuario_id ||
+                    mensaje.user_id ||
+                    mensaje.userId ||
+                    mensaje.id ||
+                    (mensaje.usuario && mensaje.usuario.id) ||
+                    (mensaje.user && mensaje.user.id)
+                );
+
+                if (idRecibido) {
+                    usuarioId = idRecibido;
+                    origenSesion = 'portal';
                 }
-                return r.json(); 
-            }).then(data => alert("Respuesta del servidor: " + JSON.stringify(data)));
+
+                window.dispatchEvent(new CustomEvent('studymatch:sesion', { detail: mensaje }));
+            }
+
+            if (mensaje.tipo === 'CERRAR_SESION') {
+                token = null;
+                usuarioId = null;
+                origenSesion = null;
+                window.dispatchEvent(new Event('studymatch:cerrar'));
+            }
+            return;
+        }
+
+        // Compatibilidad extra si Front manda un postMessage simple con { usuario_id: X }
+        var idSimple = parsearId(mensaje.usuario_id || mensaje.user_id || mensaje.userId);
+        if (idSimple) {
+            usuarioId = idSimple;
+            origenSesion = 'portal';
+            if (mensaje.token) token = mensaje.token;
+            window.dispatchEvent(new CustomEvent('studymatch:sesion', { detail: mensaje }));
+        }
+    });
+
+    // Mantener actividad si viene en iframe con token
+    ['pointerdown', 'pointermove', 'keydown', 'scroll', 'touchstart'].forEach(function (nombre) {
+        window.addEventListener(nombre, function () {
+            var tiempo = Date.now();
+            if (token && tiempo - ultimo > 5000) {
+                ultimo = tiempo;
+                enviar('ACTIVIDAD');
+            }
+        }, { passive: true, capture: true });
+    });
+
+    // Interfaz pública
+    window.StudyMatch = {
+        token: function () { return token; },
+        usuarioId: function () { return usuarioId; },
+        origen: function () { return origenSesion; },
+        establecerUsuarioManual: function (id) {
+            var valido = parsearId(id);
+            if (!valido) return false;
+            usuarioId = valido;
+            origenSesion = 'manual';
+            window.dispatchEvent(new CustomEvent('studymatch:sesion', { detail: { usuario_id: valido } }));
+            return true;
+        },
+        sesionInvalida: function () {
+            enviar('SESION_INVALIDA');
+        },
+        iniciarDesdeURL: function () {
+            var idUrl = leerIdDesdeURL();
+            if (idUrl) {
+                usuarioId = idUrl;
+                origenSesion = 'url';
+                var params = new URLSearchParams(window.location.search);
+                if (params.get('token')) token = params.get('token');
+                window.dispatchEvent(new CustomEvent('studymatch:sesion', { detail: { usuario_id: idUrl } }));
+                return true;
+            }
+            return false;
+        }
+    };
+
+    enviar('LISTO');
+
+})();
+
+</script>
+
+
+<!-- ========================================== -->
+<!-- LÓGICA DEL FRONTEND                        -->
+<!-- ========================================== -->
+
+<script>
+
+(function () {
+
+    const $ = function (id) {
+        return document.getElementById(id);
+    };
+
+    // Usa el mismo servidor donde está desplegado (Railway o localhost).
+    // Si algún día necesitan enrutar por Gateway, pueden pasar ?api_base=https://...
+    const urlParams = new URLSearchParams(window.location.search);
+    const API_BASE = (urlParams.get('api_base') || '').replace(/\/$/, '');
+
+    const statusText = $('status-text');
+    const statusDot = $('status-dot');
+    const manualBox = $('manual-id-box');
+
+    // Encabezados compatibles tanto con tu FastAPI directo (X-User-Id) como con Gateway (Bearer)
+    function obtenerHeaders() {
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+
+        const usuarioId = window.StudyMatch.usuarioId();
+        if (usuarioId) {
+            headers['X-User-Id'] = String(usuarioId);
+        }
+
+        const token = window.StudyMatch.token();
+        if (token) {
+            headers['Authorization'] = 'Bearer ' + token;
+        }
+
+        return headers;
+    }
+
+    function actualizarEstado(texto, tipo) {
+        statusText.textContent = texto;
+        statusDot.className = 'dot ' + (tipo || '');
+        $('integration-badge').textContent = texto;
+
+        const usuarioId = window.StudyMatch.usuarioId();
+        const origen = window.StudyMatch.origen();
+
+        $('stat-user').textContent = usuarioId ? ('#' + usuarioId) : 'Sin identificar';
+
+        if (usuarioId) {
+            manualBox.classList.add('d-none');
+            const etiquetaOrigen = origen === 'url'
+                ? 'parámetro de URL'
+                : (origen === 'portal' ? 'portal StudyMatch' : 'ingreso manual');
+            $('integration-detail').textContent =
+                'Usuario #' + usuarioId + ' conectado vía ' + etiquetaOrigen + '.';
+        } else {
+            manualBox.classList.remove('d-none');
+            $('integration-detail').textContent =
+                'No se recibió ?usuario_id= en la URL ni mensaje SESION del portal.';
+        }
+    }
+
+    function mostrarAlerta(mensaje, tipo) {
+        const alerta = $('global-alert');
+        alerta.className = 'alert alert-' + (tipo || 'info');
+        alerta.textContent = mensaje;
+    }
+
+    function ocultarAlerta() {
+        $('global-alert').className = 'alert d-none';
+    }
+
+    function cambiarVista(nombre) {
+        document.querySelectorAll('.section').forEach(function (seccion) {
+            seccion.classList.remove('active');
         });
-    </script>
+
+        document.querySelectorAll('.nav-button').forEach(function (boton) {
+            boton.classList.toggle('active', boton.dataset.view === nombre);
+        });
+
+        $('view-' + nombre).classList.add('active');
+
+        const titulos = {
+            grupos: 'Mis grupos',
+            crear: 'Crear grupo',
+            disponibilidad: 'Mi disponibilidad'
+        };
+
+        $('page-title').textContent = titulos[nombre];
+    }
+
+    document.querySelectorAll('.nav-button').forEach(function (boton) {
+        boton.addEventListener('click', function () {
+            cambiarVista(boton.dataset.view);
+        });
+    });
+
+    // Solo exige tener un usuarioId válido (ya sea por URL, portal o manual)
+    function validarUsuario() {
+        if (!window.StudyMatch.usuarioId()) {
+            mostrarAlerta(
+                'Falta el ID de usuario. Abre esta vista con ?usuario_id=1 o ingrésalo abajo para probar.',
+                'warning'
+            );
+            return false;
+        }
+        return true;
+    }
+
+    function manejarRespuesta(response) {
+        if (response.status === 401) {
+            window.StudyMatch.sesionInvalida();
+            actualizarEstado('Sesión inválida', 'error');
+        }
+    }
+
+    function escapar(valor) {
+        return String(valor == null ? '' : valor).replace(/[&<>"']/g, function (caracter) {
+            return {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[caracter];
+        });
+    }
+
+
+    // ==========================================
+    // CONSULTAR GRUPOS
+    // ==========================================
+
+    async function cargarGrupos() {
+        ocultarAlerta();
+        if (!validarUsuario()) return;
+
+        const usuarioId = window.StudyMatch.usuarioId();
+        $('groups-list').innerHTML = '<div class="empty">Consultando grupos...</div>';
+
+        try {
+            const response = await fetch(
+                API_BASE + '/api/v1/grupos/usuario/' + encodeURIComponent(usuarioId),
+                { headers: obtenerHeaders() }
+            );
+
+            manejarRespuesta(response);
+
+            if (response.status === 404) {
+                $('stat-groups').textContent = '0';
+                $('groups-list').innerHTML = `
+                    <div class="empty">
+                        <strong>Sin grupos para mostrar</strong>
+                        Aún no hay grupos registrados o la ruta de listado no está activa en el backend.
+                    </div>
+                `;
+                return;
+            }
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    typeof data.detail === 'string'
+                        ? data.detail
+                        : 'No fue posible consultar los grupos.'
+                );
+            }
+
+            const listaGrupos = data.grupos || (Array.isArray(data) ? data : []);
+            $('stat-groups').textContent = data.total_grupos ?? listaGrupos.length;
+
+            if (listaGrupos.length === 0) {
+                $('groups-list').innerHTML = `
+                    <div class="empty">
+                        <strong>No tienes grupos registrados todavía</strong>
+                        Cuando formes parte de un grupo aparecerá aquí.
+                    </div>
+                `;
+                return;
+            }
+
+            $('groups-list').innerHTML = listaGrupos.map(function (grupo) {
+                return `
+                    <article class="group-card">
+                        <h3>${escapar(grupo.nombre)}</h3>
+                        <div class="meta">
+                            Grupo #${escapar(grupo.grupo_id || grupo.id)}
+                            · Materia #${escapar(grupo.materia_id)}
+                            ${grupo.fecha_creacion ? ' · ' + escapar(grupo.fecha_creacion) : ''}
+                        </div>
+                    </article>
+                `;
+            }).join('');
+
+        } catch (error) {
+            $('groups-list').innerHTML = `
+                <div class="empty">
+                    <strong>No se pudieron cargar los grupos</strong>
+                    ${escapar(error.message)}
+                </div>
+            `;
+        }
+    }
+
+
+    // ==========================================
+    // CONSULTAR DISPONIBILIDAD
+    // ==========================================
+
+    async function cargarDisponibilidad() {
+        ocultarAlerta();
+        if (!validarUsuario()) return;
+
+        const usuarioId = window.StudyMatch.usuarioId();
+        $('availability-list').innerHTML = '<div class="empty">Consultando disponibilidad...</div>';
+
+        try {
+            const response = await fetch(
+                API_BASE + '/api/v1/disponibilidad/' + encodeURIComponent(usuarioId),
+                { headers: obtenerHeaders() }
+            );
+
+            manejarRespuesta(response);
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    typeof data.detail === 'string'
+                        ? data.detail
+                        : 'No fue posible consultar la disponibilidad.'
+                );
+            }
+
+            // Compatible tanto con data.disponibilidad como con data.horarios
+            const horarios = data.disponibilidad || data.horarios || (Array.isArray(data) ? data : []);
+            $('stat-slots').textContent = horarios.length;
+
+            if (horarios.length === 0) {
+                $('availability-list').innerHTML = `
+                    <div class="empty">
+                        <strong>No hay horarios registrados</strong>
+                        Este estudiante todavía no tiene disponibilidad guardada.
+                    </div>
+                `;
+                return;
+            }
+
+            $('availability-list').innerHTML = horarios.map(function (horario) {
+                const dia = horario.dia_semana || horario.dia || 'Día';
+                return `
+                    <div class="slot">
+                        <strong>${escapar(dia)}</strong>
+                        <span>${escapar(horario.hora_inicio)} – ${escapar(horario.hora_fin)}</span>
+                    </div>
+                `;
+            }).join('');
+
+        } catch (error) {
+            $('availability-list').innerHTML = `
+                <div class="empty">
+                    <strong>No se pudo consultar la disponibilidad</strong>
+                    ${escapar(error.message)}
+                </div>
+            `;
+        }
+    }
+
+
+    // ==========================================
+    // CREAR GRUPO
+    // ==========================================
+
+    $('create-form').addEventListener('submit', async function (event) {
+        event.preventDefault();
+        ocultarAlerta();
+        if (!validarUsuario()) return;
+
+        const usuarioId = window.StudyMatch.usuarioId();
+        const nombre = $('group-name').value.trim();
+        const materiaId = Number($('subject-id').value);
+        const miembrosTexto = $('members').value.trim();
+
+        let miembros = miembrosTexto
+            ? miembrosTexto.split(',').map(function (id) { return Number(id.trim()); })
+            : [];
+
+        if (!nombre || nombre.length > 150) {
+            $('create-result').innerHTML =
+                '<div class="alert alert-warning">Escribe un nombre válido para el grupo.</div>';
+            return;
+        }
+
+        if (!Number.isInteger(materiaId) || materiaId <= 0) {
+            $('create-result').innerHTML =
+                '<div class="alert alert-warning">Escribe un ID de materia válido.</div>';
+            return;
+        }
+
+        if (miembros.some(function (id) { return !Number.isInteger(id) || id <= 0; })) {
+            $('create-result').innerHTML =
+                '<div class="alert alert-warning">Revisa los ID de integrantes. Deben ser números positivos separados por comas.</div>';
+            return;
+        }
+
+        // Garantiza que el creador vaya incluido sin duplicados
+        miembros = [...new Set([Number(usuarioId), ...miembros])];
+
+        const datosGrupo = {
+            nombre: nombre,
+            materia_id: materiaId,
+            miembros: miembros
+        };
+
+        const boton = $('create-submit');
+        boton.disabled = true;
+        boton.textContent = 'Creando grupo...';
+
+        try {
+            const response = await fetch(
+                API_BASE + '/api/v1/grupos',
+                {
+                    method: 'POST',
+                    headers: obtenerHeaders(),
+                    body: JSON.stringify(datosGrupo)
+                }
+            );
+
+            manejarRespuesta(response);
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    typeof data.detail === 'string'
+                        ? data.detail
+                        : JSON.stringify(data.detail || data)
+                );
+            }
+
+            const notaChat = typeof data.chat_inicializado === 'boolean'
+                ? (data.chat_inicializado ? ' Chat inicializado.' : ' Chat pendiente de sincronización.')
+                : '';
+
+            $('create-result').innerHTML = `
+                <div class="alert alert-success">
+                    Grupo creado correctamente. Identificador: #${escapar(data.grupo_id || data.id)}.${notaChat}
+                </div>
+            `;
+
+            $('create-form').reset();
+            await cargarGrupos();
+
+        } catch (error) {
+            $('create-result').innerHTML = `
+                <div class="alert alert-danger">
+                    No se pudo crear el grupo: ${escapar(error.message)}
+                </div>
+            `;
+        } finally {
+            boton.disabled = false;
+            boton.textContent = 'Crear grupo';
+        }
+    });
+
+
+    // ==========================================
+    // BOTONES Y EVENTOS DE SESIÓN
+    // ==========================================
+
+    $('refresh-groups').addEventListener('click', cargarGrupos);
+    $('refresh-availability').addEventListener('click', cargarDisponibilidad);
+
+    $('manual-user-btn').addEventListener('click', function () {
+        const valor = $('manual-user-input').value;
+        if (!window.StudyMatch.establecerUsuarioManual(valor)) {
+            mostrarAlerta('Ingresa un ID numérico válido (mayor a 0).', 'warning');
+        }
+    });
+
+    window.addEventListener('studymatch:sesion', function () {
+        const usuarioId = window.StudyMatch.usuarioId();
+        if (usuarioId) {
+            actualizarEstado('Usuario conectado', 'ok');
+            cargarGrupos();
+            cargarDisponibilidad();
+        } else {
+            actualizarEstado('Falta ID de usuario', '');
+        }
+    });
+
+    window.addEventListener('studymatch:cerrar', function () {
+        actualizarEstado('Sesión cerrada', 'error');
+        $('groups-list').innerHTML = `
+            <div class="empty">
+                <strong>Sesión cerrada</strong>
+                Vuelve a iniciar sesión desde StudyMatch.
+            </div>
+        `;
+        $('availability-list').innerHTML = `
+            <div class="empty">
+                <strong>Sesión cerrada</strong>
+                Vuelve a iniciar sesión desde StudyMatch.
+            </div>
+        `;
+        $('stat-groups').textContent = '—';
+        $('stat-slots').textContent = '—';
+        mostrarAlerta('La sesión fue cerrada desde el portal principal.', 'warning');
+    });
+
+    // Arranque inicial: intenta leer ?usuario_id= de la URL apenas carga
+    if (!window.StudyMatch.iniciarDesdeURL()) {
+        actualizarEstado('Esperando usuario', '');
+    }
+
+})();
+
+</script>
+
 </body>
 </html>
