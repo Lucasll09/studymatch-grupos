@@ -64,7 +64,7 @@ async def servir_interfaz():
 # =================================================================
 # RUTAS DE LA API (BACKEND)
 # =================================================================
-@app.get("/api/v1/disponibilidad/{usuario_id}", response_model=models.DisponibilidadResponse)
+@app.get("/api/v1/disponibilidad/{usuario_id}")
 def consultar_disponibilidad(usuario_id: int, db: Session = Depends(get_db)):
     horarios_db = db.query(db_models.DisponibilidadDB).filter(
         db_models.DisponibilidadDB.usuario_id == usuario_id
@@ -75,13 +75,19 @@ def consultar_disponibilidad(usuario_id: int, db: Session = Depends(get_db)):
 
     horarios_formateados = []
     for h in horarios_db:
-        horarios_formateados.append(models.Horario(
-            dia=h.dia_semana,
-            hora_inicio=h.hora_inicio.strftime("%H:%M") if h.hora_inicio else "",
-            hora_fin=h.hora_fin.strftime("%H:%M") if h.hora_fin else ""
-        ))
+        horarios_formateados.append({
+            "dia_semana": h.dia_semana,
+            "dia": h.dia_semana,
+            "hora_inicio": h.hora_inicio.strftime("%H:%M") if h.hora_inicio else "",
+            "hora_fin": h.hora_fin.strftime("%H:%M") if h.hora_fin else "",
+            "modalidad": getattr(h, "modalidad", None)
+        })
 
-    return models.DisponibilidadResponse(usuario_id=usuario_id, horarios=horarios_formateados)
+    return {
+        "usuario_id": usuario_id,
+        "horarios": horarios_formateados,
+        "disponibilidad": horarios_formateados
+    }
 
 
 @app.get("/api/v1/grupos/usuario/{usuario_id}")
