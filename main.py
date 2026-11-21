@@ -1,4 +1,5 @@
 import os
+import unicodedata
 import httpx
 from fastapi import FastAPI, Depends, HTTPException, status, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,7 +19,7 @@ GATEWAY_URL = os.getenv("GATEWAY_URL", "http://178.18.252.176:8000").rstrip("/")
 
 app = FastAPI(
     title="Microservicio de Grupos y Disponibilidad",
-    version="3.6",
+    version="3.7",
     description="API con BD, Integración HTTP (Mensajería, Materias y Catálogo), Gateway y Frontend embebido"
 )
 
@@ -42,6 +43,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(SecurityHeadersMiddleware)
+
+
+def normalizar_texto_db(texto: str, max_len: int) -> str:
+    sin_tildes = "".join(
+        c for c in unicodedata.normalize("NFD", texto.strip())
+        if unicodedata.category(c) != "Mn"
+    )
+    return sin_tildes.lower()[:max_len]
 
 
 # =================================================================
@@ -171,8 +180,8 @@ def crear_disponibilidad(
             detail="La hora de fin debe ser posterior a la hora de inicio."
         )
 
-    dia_limpio = datos.dia_semana.strip()[:10]
-    modalidad_limpia = (datos.modalidad or "Virtual").strip()[:20]
+    dia_limpio = normalizar_texto_db(datos.dia_semana, 10)
+    modalidad_limpia = normalizar_texto_db(datos.modalidad or "virtual", 20)
 
     try:
         nuevo_horario = db_models.DisponibilidadDB(
