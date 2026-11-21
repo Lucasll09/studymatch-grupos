@@ -6,21 +6,19 @@ from fastapi.responses import HTMLResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from datetime import date
+from datetime import date, datetime
 
-# Importamos la configuración de DB y los modelos
 from database import get_db
 import db_models
 import models
 
-# Cargar las URLs desde las variables de entorno (.env / Railway)
 MENSAJERIA_URL = os.getenv("MENSAJERIA_URL")
 MATERIAS_URL = os.getenv("MATERIAS_URL")
 GATEWAY_URL = os.getenv("GATEWAY_URL", "http://178.18.252.176:8000").rstrip("/")
 
 app = FastAPI(
     title="Microservicio de Grupos y Disponibilidad",
-    version="3.5",
+    version="3.6",
     description="API con BD, Integración HTTP (Mensajería, Materias y Catálogo), Gateway y Frontend embebido"
 )
 
@@ -39,7 +37,6 @@ app.add_middleware(
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         response = await call_next(request)
-        # Permite incrustar el módulo tanto en localhost:4200 como en el dominio desplegado del Frontend
         response.headers["Content-Security-Policy"] = "frame-ancestors *"
         return response
 
@@ -73,7 +70,6 @@ async def obtener_catalogo_gateway(authorization: str = Header(None)):
     materias_map = {}
 
     async with httpx.AsyncClient(timeout=15.0) as client:
-        # 1. Consultar lista de estudiantes en el Gateway
         try:
             resp_u = await client.get(f"{GATEWAY_URL}/api/v1/usuarios", headers=headers)
             if resp_u.status_code == 200:
@@ -95,7 +91,6 @@ async def obtener_catalogo_gateway(authorization: str = Header(None)):
         except Exception as e:
             print(f"Advertencia catalogo usuarios: {e}")
 
-        # 2. Consultar lista de materias en el Gateway
         try:
             resp_m = await client.get(f"{GATEWAY_URL}/api/v1/materias", headers=headers)
             if resp_m.status_code == 200:
@@ -123,7 +118,7 @@ async def obtener_catalogo_gateway(authorization: str = Header(None)):
 
 
 # =================================================================
-# RUTAS DE LA API (BACKEND)
+# RUTAS DE DISPONIBILIDAD (CONSULTAR Y CREAR)
 # =================================================================
 @app.get("/api/v1/disponibilidad/{usuario_id}")
 def consultar_disponibilidad(usuario_id: int, db: Session = Depends(get_db)):
@@ -137,6 +132,7 @@ def consultar_disponibilidad(usuario_id: int, db: Session = Depends(get_db)):
     horarios_formateados = []
     for h in horarios_db:
         horarios_formateados.append({
+            "disponibilidad_id": h.disponibilidad_id,
             "dia_semana": h.dia_semana,
             "dia": h.dia_semana,
             "hora_inicio": h.hora_inicio.strftime("%H:%M") if h.hora_inicio else "",
@@ -151,6 +147,71 @@ def consultar_disponibilidad(usuario_id: int, db: Session = Depends(get_db)):
     }
 
 
+@app.post("/api/v1/disponibilidad", status_code=status.HTTP_201_CREATED)
+def crear_disponibilidad(
+    datos: models.DisponibilidadCreate,
+    x_user_id: int = Header(None, alias="X-User-Id"),
+    db: Session = Depends(get_db)
+):
+    if not x_user_id:
+        raise HTTPException(status_code=401, detail="No autorizado. Falta X-User-Id")
+
+    try:
+        t_inicio = datetime.strptime(datos.hora_inicio.strip()[:5], "%H:%M").time()
+        t_fin = datetime.strptime(datos.hora_fin.strip()[:5], "%H:%M").time()
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Formato de hora inválido. Usa HH:MM (ej. 14:00)."
+        )
+
+    if t_fin <= t_inicio:
+        raise HTTPException(
+            status_code=400,
+            detail="La hora de fin debe ser posterior a la hora de inicio."
+        )
+
+    dia_limpio = datos.dia_semana.strip()[:10]
+    modalidad_limpia = (datos.modalidad or "Virtual").strip()[:20]
+
+    try:
+        nuevo_horario = db_models.DisponibilidadDB(
+            usuario_id=x_user_id,
+            dia_semana=dia_limpio,
+            hora_inicio=t_inicio,
+            hora_fin=t_fin,
+            modalidad=modalidad_limpia
+        )
+        db.add(nuevo_horario)
+        db.commit()
+        db.refresh(nuevo_horario)
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail=f"No se pudo guardar el horario (verifica restricciones de día o modalidad): {str(e.orig)}"
+        )
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error de base de datos al guardar disponibilidad: {str(e)}"
+        )
+
+    return {
+        "mensaje": "Horario de disponibilidad registrado correctamente",
+        "disponibilidad_id": nuevo_horario.disponibilidad_id,
+        "usuario_id": nuevo_horario.usuario_id,
+        "dia_semana": nuevo_horario.dia_semana,
+        "hora_inicio": nuevo_horario.hora_inicio.strftime("%H:%M"),
+        "hora_fin": nuevo_horario.hora_fin.strftime("%H:%M"),
+        "modalidad": nuevo_horario.modalidad
+    }
+
+
+# =================================================================
+# RUTAS DE GRUPOS (LISTAR Y CREAR)
+# =================================================================
 @app.get("/api/v1/grupos/usuario/{usuario_id}")
 def listar_grupos_usuario(usuario_id: int, db: Session = Depends(get_db)):
     grupos_db = (
@@ -183,15 +244,12 @@ def listar_grupos_usuario(usuario_id: int, db: Session = Depends(get_db)):
 @app.post("/api/v1/grupos", status_code=status.HTTP_201_CREATED)
 async def crear_grupo(
     grupo: models.GrupoCreate,
-    # Recibimos el ID limpio que manda el Gateway o la interfaz
     x_user_id: int = Header(None, alias="X-User-Id"),
     db: Session = Depends(get_db)
 ):
-    # 1. Validación de seguridad
     if not x_user_id:
         raise HTTPException(status_code=401, detail="No autorizado. Falta X-User-Id desde el Gateway")
 
-    # 2. --- INTEGRACIÓN CON MATERIAS (Validar contra GET /api/v1/materias) ---
     if MATERIAS_URL:
         base_materias = MATERIAS_URL.rstrip("/")
         url_consulta = (
@@ -235,7 +293,6 @@ async def crear_grupo(
                 detail="El microservicio de Materias está fuera de línea. No se pudo validar."
             )
 
-    # 3 y 4. Insertar grupo e integrantes en una sola transacción limpia
     miembros_unicos = list(dict.fromkeys([x_user_id, *grupo.miembros]))
     try:
         nuevo_grupo = db_models.GrupoDB(
@@ -269,7 +326,6 @@ async def crear_grupo(
             detail=f"Error de base de datos al crear el grupo: {str(e)}"
         )
 
-    # 5. --- INTEGRACIÓN CON MENSAJERÍA ---
     chat_creado = False
     if MENSAJERIA_URL:
         payload = {

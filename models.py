@@ -3,9 +3,17 @@ from typing import List, Optional
 
 
 class Horario(BaseModel):
-    dia_semana: str = Field(..., description="Día de la semana, ej. Lunes")
+    dia_semana: str = Field(..., max_length=10, description="Día de la semana, ej. Lunes")
     hora_inicio: str = Field(..., description="Hora de inicio en formato HH:MM")
     hora_fin: str = Field(..., description="Hora de fin en formato HH:MM")
+    modalidad: Optional[str] = Field("Virtual", max_length=20, description="Virtual, Presencial o Hibrida")
+
+
+class DisponibilidadCreate(BaseModel):
+    dia_semana: str = Field(..., max_length=10, description="Día de la semana (Lunes a Sabado)")
+    hora_inicio: str = Field(..., description="Hora de inicio en formato HH:MM")
+    hora_fin: str = Field(..., description="Hora de fin en formato HH:MM")
+    modalidad: Optional[str] = Field("Virtual", max_length=20, description="Modalidad de estudio")
 
 
 class DisponibilidadResponse(BaseModel):

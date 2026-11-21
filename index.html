@@ -331,6 +331,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
             border: 1px solid var(--border);
             border-radius: 10px;
             padding: 14px;
@@ -528,7 +530,7 @@
                         </div>
 
                         <div class="col-md-5">
-                            <label class="form-label" for="subject-id">Materia</label>
+                            <label class="form-label" for="subject-select">Materia</label>
                             <select class="form-select" id="subject-select">
                                 <option value="">Cargando materias...</option>
                             </select>
@@ -567,11 +569,59 @@
 
         <!-- DISPONIBILIDAD -->
         <section id="view-disponibilidad" class="section">
+            <div class="panel mb-4">
+                <h2>Registrar nuevo horario</h2>
+                <p class="hint">Agrega una franja horaria disponible para tus sesiones de estudio.</p>
+
+                <form id="availability-form">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-sm-6 col-md-3">
+                            <label class="form-label" for="avail-day">Día de la semana</label>
+                            <select class="form-select" id="avail-day" required>
+                                <option value="Lunes">Lunes</option>
+                                <option value="Martes">Martes</option>
+                                <option value="Miercoles">Miércoles</option>
+                                <option value="Jueves">Jueves</option>
+                                <option value="Viernes">Viernes</option>
+                                <option value="Sabado">Sábado</option>
+                            </select>
+                        </div>
+
+                        <div class="col-sm-6 col-md-2">
+                            <label class="form-label" for="avail-start">Hora inicio</label>
+                            <input class="form-control" id="avail-start" type="time" value="14:00" required>
+                        </div>
+
+                        <div class="col-sm-6 col-md-2">
+                            <label class="form-label" for="avail-end">Hora fin</label>
+                            <input class="form-control" id="avail-end" type="time" value="16:00" required>
+                        </div>
+
+                        <div class="col-sm-6 col-md-3">
+                            <label class="form-label" for="avail-mode">Modalidad</label>
+                            <select class="form-select" id="avail-mode" required>
+                                <option value="Virtual">Virtual</option>
+                                <option value="Presencial">Presencial</option>
+                                <option value="Hibrida">Híbrida</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
+                            <button class="btn btn-primary w-100" id="avail-submit" type="submit">
+                                + Agregar
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <div id="availability-result" class="mt-3"></div>
+            </div>
+
             <div class="panel">
                 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
                     <div>
                         <h2>Mi disponibilidad</h2>
-                        <p class="hint">Consulta los horarios registrados para tu usuario.</p>
+                        <p class="hint">Horarios registrados actualmente para tu usuario.</p>
                     </div>
 
                     <button class="btn btn-outline-primary" id="refresh-availability">
@@ -615,7 +665,7 @@
                         id="manual-user-input"
                         class="form-control"
                         style="max-width: 240px;"
-                        placeholder="Probar con usuario_id (ej. 13)"
+                        placeholder="Probar con usuario_id (ej. 14)"
                     >
                     <button type="button" class="btn btn-outline-primary" id="manual-user-btn">
                         Cargar usuario
@@ -901,7 +951,7 @@
     }
 
     // ==========================================
-    // CONSULTAR DISPONIBILIDAD
+    // CONSULTAR Y CREAR DISPONIBILIDAD
     // ==========================================
     async function cargarDisponibilidad() {
         ocultarAlerta();
@@ -917,6 +967,17 @@
             );
 
             manejarRespuesta(response);
+
+            if (response.status === 404) {
+                $('stat-slots').textContent = '0';
+                $('availability-list').innerHTML = `
+                    <div class="empty">
+                        <strong>No hay horarios registrados</strong>
+                        Agrega una franja horaria en el formulario superior.
+                    </div>
+                `;
+                return;
+            }
 
             const data = await response.json();
 
@@ -943,9 +1004,15 @@
 
             $('availability-list').innerHTML = horarios.map(function (horario) {
                 const dia = horario.dia_semana || horario.dia || 'Día';
+                const modalidad = horario.modalidad
+                    ? `<span class="badge text-bg-light border ms-2">${escapar(horario.modalidad)}</span>`
+                    : '';
                 return `
                     <div class="slot">
-                        <strong>${escapar(dia)}</strong>
+                        <div>
+                            <strong>${escapar(dia)}</strong>
+                            ${modalidad}
+                        </div>
                         <span>${escapar(horario.hora_inicio)} – ${escapar(horario.hora_fin)}</span>
                     </div>
                 `;
@@ -960,6 +1027,63 @@
             `;
         }
     }
+
+    $('availability-form').addEventListener('submit', async function (event) {
+        event.preventDefault();
+        ocultarAlerta();
+        if (!validarUsuario()) return;
+
+        const payload = {
+            dia_semana: $('avail-day').value,
+            hora_inicio: $('avail-start').value,
+            hora_fin: $('avail-end').value,
+            modalidad: $('avail-mode').value
+        };
+
+        const boton = $('avail-submit');
+        boton.disabled = true;
+        boton.textContent = 'Guardando...';
+
+        try {
+            const response = await fetch(
+                API_BASE + '/api/v1/disponibilidad',
+                {
+                    method: 'POST',
+                    headers: obtenerHeaders(),
+                    body: JSON.stringify(payload)
+                }
+            );
+
+            manejarRespuesta(response);
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    typeof data.detail === 'string'
+                        ? data.detail
+                        : JSON.stringify(data.detail || data)
+                );
+            }
+
+            $('availability-result').innerHTML = `
+                <div class="alert alert-success">
+                    Horario registrado: ${escapar(data.dia_semana)} de ${escapar(data.hora_inicio)} a ${escapar(data.hora_fin)} (${escapar(data.modalidad)}).
+                </div>
+            `;
+
+            await cargarDisponibilidad();
+        } catch (error) {
+            $('availability-result').innerHTML = `
+                <div class="alert alert-danger">
+                    No se pudo registrar el horario: ${escapar(error.message)}
+                </div>
+            `;
+        } finally {
+            boton.disabled = false;
+            boton.textContent = '+ Agregar';
+        }
+    });
 
     // ==========================================
     // CREAR GRUPO
